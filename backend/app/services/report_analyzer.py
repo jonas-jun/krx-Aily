@@ -94,6 +94,9 @@ async def analyze_reports(
         contents=prompt,
     )
 
+    if not response.text:
+        raise ValueError("Gemini returned empty response (possible safety filter or empty input)")
+
     parsed = _parse_response(response.text)
 
     target = parsed.get("target_price", {}) or {}

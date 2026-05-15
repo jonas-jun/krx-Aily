@@ -49,7 +49,8 @@ function ReportContent() {
         <Link href="/" className="text-sm text-slate-400 hover:text-slate-600 mb-3 inline-block">
           ← 뒤로
         </Link>
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📈</span>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{name}</h1>
           <span className="text-sm text-slate-400 font-mono">{ticker}</span>
         </div>
