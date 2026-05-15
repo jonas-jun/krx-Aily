@@ -31,8 +31,9 @@ class ReportItem(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    ticker: str
-    name: str
+    query: str | None = None      # 종목명 검색어 — 제공 시 search → top 1 자동 선택
+    ticker: str | None = None
+    name: str | None = None
     n: int = 5
     reports: list[ReportItem] | None = None
 
@@ -125,10 +126,33 @@ async def analyze(body: AnalyzeRequest):
     """
     리포트 목록 수집 → PDF 텍스트 추출 → Gemini 통합 분석 보고서 생성.
 
-    - `reports` 필드에 `/reports/{ticker}` 결과를 그대로 넣으면 스크래핑을 건너뛴다.
-    - `reports`를 생략하면 `ticker` + `n` 기준으로 내부에서 직접 수집한다.
+    - `query`를 제공하면 종목 검색 후 상위 1개 종목으로 자동 진행한다.
+    - `ticker` + `name`을 직접 제공해도 된다.
+    - `reports`를 함께 넣으면 스크래핑을 건너뛴다.
     """
-    if body.reports is not None:
+    # ── 종목 결정 ─────────────────────────────────────────────────────────────
+    if body.query:
+        results = await search_tickers(body.query, limit=1)
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "NOT_FOUND", "message": f"'{body.query}'에 해당하는 종목을 찾을 수 없습니다."},
+            )
+        ticker = results[0]["ticker"]
+        name = results[0]["name"]
+    elif body.ticker and body.name:
+        ticker = body.ticker
+        name = body.name
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MISSING_FIELDS", "message": "'query' 또는 'ticker'+'name'을 제공해야 합니다."},
+        )
+
+    # ── 리포트 수집 ───────────────────────────────────────────────────────────
+    # query로 검색한 경우 reports 필드를 무시하고 항상 직접 수집한다.
+    use_provided = body.reports is not None and not body.query
+    if use_provided:
         reports: list[ReportMeta] = [
             ReportMeta(
                 nid=r.nid,
@@ -142,7 +166,7 @@ async def analyze(body: AnalyzeRequest):
         ]
     else:
         try:
-            reports = await fetch_reports_with_pdf(body.ticker, body.n)
+            reports = await fetch_reports_with_pdf(ticker, body.n)
         except Exception as e:
             logger.error("리포트 수집 실패: %s", e)
             raise HTTPException(
@@ -162,8 +186,8 @@ async def analyze(body: AnalyzeRequest):
 
     try:
         result: AnalysisResult = await analyze_reports(
-            ticker=body.ticker,
-            name=body.name,
+            ticker=ticker,
+            name=name,
             reports=reports,
             texts=list(texts),
         )

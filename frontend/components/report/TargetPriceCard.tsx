@@ -13,7 +13,7 @@ export function TargetPriceCard({ targetPrice }: Props) {
       <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">목표주가</h2>
       {hasData ? (
         <div className="flex flex-col gap-1">
-          <div className="text-3xl font-extrabold text-blue-600">
+          <div className="text-3xl font-extrabold text-red-600">
             {formatPrice(targetPrice.avg)}
           </div>
           <div className="flex gap-4 text-sm text-slate-500 mt-1">

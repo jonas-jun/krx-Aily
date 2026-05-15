@@ -64,8 +64,8 @@ export function StockSearch() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="종목명 검색 (예: 삼성전자, 카카오)"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 sm:py-2.5 text-base sm:text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="종목명 검색 (예: SK하이닉스, NAVER)"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 sm:py-2.5 text-base sm:text-sm shadow-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400"
           />
           {loading && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
@@ -75,7 +75,7 @@ export function StockSearch() {
         </div>
         <button
           type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-3 sm:py-2.5 text-base sm:text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+          className="rounded-lg bg-red-600 px-4 py-3 sm:py-2.5 text-base sm:text-sm font-medium text-white hover:bg-red-700 active:bg-red-800 transition-colors"
         >
           검색
         </button>
