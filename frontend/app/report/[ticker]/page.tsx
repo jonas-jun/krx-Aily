@@ -56,7 +56,7 @@ function ReportContent() {
         </div>
         {data && (
           <p className="text-xs text-slate-400 mt-1">
-            리포트 {data.report_count}개 기반 · {data.analyzed_at} 분석
+            리포트 {data.report_count}개 기반 · {new Date(data.analyzed_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} 분석
           </p>
         )}
       </div>
