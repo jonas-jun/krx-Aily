@@ -64,7 +64,7 @@ export function StockSearch() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="종목명 검색 (예: SK하이닉스, NAVER)"
+            placeholder="종목명 검색 (예: SK하이닉스)"
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 sm:py-2.5 text-base sm:text-sm shadow-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400"
           />
           {loading && (
