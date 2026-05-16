@@ -108,7 +108,7 @@ async def _fetch_cumulative_financials(
     revenue = operating_income = net_income = None
     for row in data.get("list", []):
         account = row.get("account_nm", "")
-        amount_str = row.get("thstrm_amount", "").replace(",", "").replace("-", "")
+        amount_str = row.get("thstrm_amount", "").replace(",", "")
         try:
             amount = int(amount_str) if amount_str else None
         except ValueError:
