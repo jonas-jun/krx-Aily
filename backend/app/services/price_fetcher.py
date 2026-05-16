@@ -17,12 +17,20 @@ _HEADERS = {
 
 async def fetch_current_price(ticker: str) -> float | None:
     """현재주가를 조회한다. 네이버 모바일 API를 우선 시도하고 실패 시 폴링 API로 폴백한다."""
+    logger.info("[price] 주가 조회 시작 (ticker=%s)", ticker)
+
     price = await _fetch_from_mobile_api(ticker)
     if price is not None:
+        logger.info("[price] 모바일 API 성공 (ticker=%s, price=%s)", ticker, price)
         return price
 
-    logger.info("모바일 API 실패, 폴링 API로 폴백 (ticker=%s)", ticker)
-    return await _fetch_from_polling_api(ticker)
+    logger.warning("[price] 모바일 API None 반환, 폴링 API로 폴백 (ticker=%s)", ticker)
+    price = await _fetch_from_polling_api(ticker)
+    if price is not None:
+        logger.info("[price] 폴링 API 성공 (ticker=%s, price=%s)", ticker, price)
+    else:
+        logger.warning("[price] 두 API 모두 실패 (ticker=%s)", ticker)
+    return price
 
 
 async def _fetch_from_mobile_api(ticker: str) -> float | None:
