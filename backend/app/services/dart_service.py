@@ -131,65 +131,52 @@ async def _fetch_cumulative_financials(
     }
 
 
-def _diff(a: int | None, b: int | None) -> int | None:
-    """누적값 차분으로 단독 분기 수치 산출. 어느 한쪽이 None이면 None 반환."""
-    if a is None or b is None:
+def _subtract_annual(annual: int | None, *quarters: int | None) -> int | None:
+    """연간 누적에서 개별 분기 합산을 차감하여 4Q 단독 수치 반환."""
+    if annual is None:
         return None
-    return a - b
+    return annual - sum(v or 0 for v in quarters)
 
 
 def _compute_actual_quarters(cumulative: dict[str, dict], year: int) -> list[dict]:
-    """DART 누적값에서 실제 단독 분기 수치를 차분으로 산출.
-
-    thstrm_amount는 모두 연초 기준 누적값:
-      1Q 보고서  → Q1 누적 (= Q1 개별)
-      반기 보고서 → Q1+Q2 누적
-      3Q 보고서  → Q1+Q2+Q3 누적
-      사업보고서  → Q1+Q2+Q3+Q4 누적
-
-    따라서 각 분기 개별값 = 해당 누적 − 직전 누적.
-    """
-    q1c = cumulative.get("1Q")    # Q1 누적
-    h1c = cumulative.get("반기")  # H1 누적
-    q3c = cumulative.get("3Q")   # 9M 누적
-    ann = cumulative.get("연간")  # 연간 누적
+    """분기 보고서는 개별 수치 그대로, 4Q만 연간 누적 − (1Q+2Q+3Q)로 역산."""
+    q1 = cumulative.get("1Q")
+    q2 = cumulative.get("반기")  # 반기보고서: Q2 개별 수치
+    q3 = cumulative.get("3Q")   # 3분기보고서: Q3 개별 수치
+    ann = cumulative.get("연간") # 사업보고서: 연간 누적
 
     quarters = []
 
-    # 1Q: 연초 첫 분기이므로 누적 = 개별
-    if q1c:
+    if q1:
         quarters.append({
             "period": f"{year} 1Q",
-            "revenue": q1c["revenue"],
-            "operating_income": q1c["operating_income"],
-            "net_income": q1c["net_income"],
+            "revenue": q1["revenue"],
+            "operating_income": q1["operating_income"],
+            "net_income": q1["net_income"],
         })
-
-    # 2Q = H1 누적 − Q1 누적
-    if h1c and q1c:
+    if q2:
         quarters.append({
             "period": f"{year} 2Q",
-            "revenue": _diff(h1c["revenue"], q1c["revenue"]),
-            "operating_income": _diff(h1c["operating_income"], q1c["operating_income"]),
-            "net_income": _diff(h1c["net_income"], q1c["net_income"]),
+            "revenue": q2["revenue"],
+            "operating_income": q2["operating_income"],
+            "net_income": q2["net_income"],
         })
-
-    # 3Q = 9M 누적 − H1 누적
-    if q3c and h1c:
+    if q3:
         quarters.append({
             "period": f"{year} 3Q",
-            "revenue": _diff(q3c["revenue"], h1c["revenue"]),
-            "operating_income": _diff(q3c["operating_income"], h1c["operating_income"]),
-            "net_income": _diff(q3c["net_income"], h1c["net_income"]),
+            "revenue": q3["revenue"],
+            "operating_income": q3["operating_income"],
+            "net_income": q3["net_income"],
         })
 
-    # 4Q = 연간 누적 − 9M 누적
-    if ann and q3c:
+    # 4Q = 연간 누적 − (1Q + 2Q + 3Q 개별 합산)
+    # 정확도 보장을 위해 3개 분기 모두 있을 때만 계산
+    if ann and q1 and q2 and q3:
         quarters.append({
             "period": f"{year} 4Q",
-            "revenue": _diff(ann["revenue"], q3c["revenue"]),
-            "operating_income": _diff(ann["operating_income"], q3c["operating_income"]),
-            "net_income": _diff(ann["net_income"], q3c["net_income"]),
+            "revenue": _subtract_annual(ann["revenue"], q1["revenue"], q2["revenue"], q3["revenue"]),
+            "operating_income": _subtract_annual(ann["operating_income"], q1["operating_income"], q2["operating_income"], q3["operating_income"]),
+            "net_income": _subtract_annual(ann["net_income"], q1["net_income"], q2["net_income"], q3["net_income"]),
         })
 
     return quarters
