@@ -190,8 +190,14 @@ async def analyze(body: AnalyzeRequest):
             },
         )
 
+    sem = asyncio.Semaphore(2)
+
+    async def extract_with_limit(url: str) -> str:
+        async with sem:
+            return await extract_text_from_pdf_url(url)
+
     texts, current_price = await asyncio.gather(
-        asyncio.gather(*[extract_text_from_pdf_url(r.pdf_url) for r in reports]),
+        asyncio.gather(*[extract_with_limit(r.pdf_url) for r in reports]),
         fetch_current_price(ticker),
     )
 
