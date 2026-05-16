@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     gemini_api_key: str = ""
+    dart_api_key: str = ""
     app_env: str = "development"
     debug: bool = False
     cors_origins: list[str] = ["http://localhost:3000"]
