@@ -31,9 +31,9 @@ function OpinionItem({
   color: "emerald" | "slate" | "red";
 }) {
   const colorMap = {
-    emerald: { dot: "text-emerald-500", label: "text-emerald-700", bg: "bg-emerald-50" },
+    emerald: { dot: "text-[#EF4444]", label: "text-[#EF4444]", bg: "bg-red-50" },
     slate: { dot: "text-slate-400", label: "text-slate-600", bg: "bg-slate-50" },
-    red: { dot: "text-red-400", label: "text-red-600", bg: "bg-red-50" },
+    red: { dot: "text-slate-400", label: "text-slate-500", bg: "bg-slate-50" },
   };
   const c = colorMap[color];
   const dots = total > 0 ? Math.round((count / total) * 5) : 0;

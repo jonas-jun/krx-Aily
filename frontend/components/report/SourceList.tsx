@@ -14,7 +14,7 @@ export function SourceList({ sources }: Props) {
         {sources.map((s, i) => (
           <li key={i} className="flex items-center justify-between py-2.5 gap-3">
             <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-xs font-semibold text-red-700">{s.firm}</span>
+              <span className="text-xs font-semibold text-[#EF4444]">{s.firm}</span>
               <span className="text-sm text-slate-700 truncate">{s.title}</span>
               <span className="text-xs text-slate-400">{s.date}</span>
             </div>
@@ -23,7 +23,7 @@ export function SourceList({ sources }: Props) {
                 href={s.pdf_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 text-xs text-red-600 hover:text-red-800 font-medium"
+                className="flex-shrink-0 text-xs text-[#EF4444] hover:text-red-700 font-medium"
               >
                 PDF ↗
               </a>

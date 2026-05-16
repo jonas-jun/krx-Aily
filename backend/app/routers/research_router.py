@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.services.naver_scraper import ReportMeta, fetch_reports_with_pdf
 from app.services.pdf_extractor import extract_text_from_pdf_url
+from app.services.price_fetcher import fetch_current_price
 from app.services.report_analyzer import AnalysisResult, analyze_reports
 from app.services.ticker_resolver import search_tickers
 
@@ -43,6 +44,7 @@ class TargetPrice(BaseModel):
     avg: float | None
     min: float | None
     max: float | None
+    current_price: float | None = None
 
 
 class Opinions(BaseModel):
@@ -188,8 +190,9 @@ async def analyze(body: AnalyzeRequest):
             },
         )
 
-    texts: list[str] = await asyncio.gather(
-        *[extract_text_from_pdf_url(r.pdf_url) for r in reports]
+    texts, current_price = await asyncio.gather(
+        asyncio.gather(*[extract_text_from_pdf_url(r.pdf_url) for r in reports]),
+        fetch_current_price(ticker),
     )
 
     try:
@@ -212,7 +215,7 @@ async def analyze(body: AnalyzeRequest):
         report_count=result.report_count,
         analyzed_at=result.analyzed_at,
         opinions=Opinions(**result.opinions),
-        target_price=TargetPrice(**result.target_price),
+        target_price=TargetPrice(**result.target_price, current_price=current_price),
         key_points=result.key_points,
         risks=result.risks,
         sources=[SourceItem(**s) for s in result.sources],

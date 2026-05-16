@@ -1,185 +1,115 @@
-# KRX-Aily 배포 계획
-
-## 스택
-
-| 레이어 | 서비스 | 비고 |
-|--------|--------|------|
-| 백엔드 | Google Cloud Run | fin-Aily Dockerfile 구조 동일 적용 |
-| 프론트엔드 | Vercel | fin-Aily와 동일 |
-| 컨테이너 저장소 | Artifact Registry | 리전: asia-northeast3 (서울) |
-| 이미지 빌드 | Cloud Build | 로컬 Docker 불필요 |
+# krx-Aily 개발 기획안
 
 ---
 
-## Phase 1 — 코드 수정
+## [완료] 디자인 리브랜딩 (issue #11)
 
-배포 전 아래 파일들을 수정/추가해야 한다.
+| 항목 | 변경 전 | 변경 후 |
+|---|---|---|
+| 서비스명 | KRX-Aily | fin-Aily-kr |
+| 핵심 컬러 | rose-500 (그라디언트) | Rose Red `#EF4444` |
+| 보조 컬러 | slate 계열 | Navy Blue `#1E3A5F` |
+| 로고 | 텍스트 전용 | SVG 로고 (▲ 아이콘 + KR 배지) |
 
-### 1-1. `backend/Dockerfile`
-
-- Python 버전: `3.11-slim` → `3.13-slim` (fin-Aily와 통일)
-- 포트: `8000` 하드코딩 → `${PORT:-8080}` (Cloud Run은 PORT 환경변수로 포트를 동적 할당)
-
-```dockerfile
-FROM python:3.13-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-# Cloud Run은 기본적으로 PORT 환경변수로 8080을 제공합니다.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
-```
-
-### 1-2. `backend/.dockerignore` (신규)
-
-fin-Aily와 동일하게 적용. `.env` 파일이 이미지에 포함되지 않도록 한다.
-
-```
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.env
-.env.*
-!.env.example
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-tests/
-.git/
-.gitignore
-.vscode/
-.idea/
-.DS_Store
-*.md
-```
-
-### 1-3. `backend/.env.example` (신규)
-
-```env
-GEMINI_API_KEY=your-gemini-api-key-here
-
-APP_ENV=production
-DEBUG=false
-CORS_ORIGINS=["https://your-vercel-domain.vercel.app"]
-```
-
-### 1-4. `frontend/.env.local.example` (신규)
-
-```env
-# 개발 환경
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-
-# 프로덕션 (Cloud Run 배포 후 URL로 교체)
-# NEXT_PUBLIC_API_URL=https://krx-aily-backend-xxxx.run.app/api
-```
+### 완료된 변경 파일
+- `tailwind.config.js` — `primary: #EF4444`, `brand: #1E3A5F` 커스텀 컬러
+- `Logo.tsx` — 점 없는 i(ı) + 빨간 삼각형 + KR 배지 SVG 컴포넌트
+- `Header.tsx` — SVG 로고 적용, 활성 Nav 링크 `#EF4444`
+- `app/layout.tsx` — 타이틀 `fin-Aily-kr` 변경
+- `app/page.tsx` — 이모지·h1 제거, Hero 로고(size=lg)
+- 리포트 컴포넌트 5종 — Primary 컬러 `#EF4444` 일괄 적용
 
 ---
 
-## Phase 2 — GCP 초기 설정 (최초 1회)
+## [진행 예정] 리포트 페이지 UX 개선
 
-```bash
-# 1. GCP 프로젝트 설정
-gcloud config set project PROJECT_ID
+### 기능 1. 종목명 앞 이모지 제거
 
-# 2. 필요한 API 활성화
-gcloud services enable \
-  run.googleapis.com \
-  artifactregistry.googleapis.com \
-  cloudbuild.googleapis.com
-
-# 3. Artifact Registry 저장소 생성
-gcloud artifacts repositories create krx-aily \
-  --repository-format=docker \
-  --location=asia-northeast3 \
-  --description="KRX-Aily Docker images"
+**현재**
 ```
+📈 삼성전자  005930
+```
+**변경 후**
+```
+삼성전자  005930
+```
+
+- **파일**: `app/report/[ticker]/page.tsx` line 53
+- **작업**: `<span className="text-xl">📈</span>` 제거
 
 ---
 
-## Phase 3 — 백엔드 배포 (Cloud Run)
+### 기능 2. 목표주가 카드에 현재주가 표시
 
-Cloud Build를 사용하면 로컬 Docker 없이 GCP에서 직접 빌드 + 푸시한다.
+#### 목표 UI
 
-```bash
-# 이미지 빌드 & Artifact Registry 푸시
-gcloud builds submit ./backend \
-  --tag asia-northeast3-docker.pkg.dev/PROJECT_ID/krx-aily/backend
-
-# Cloud Run 배포
-gcloud run deploy krx-aily-backend \
-  --image asia-northeast3-docker.pkg.dev/PROJECT_ID/krx-aily/backend \
-  --platform managed \
-  --region asia-northeast3 \
-  --allow-unauthenticated \
-  --set-env-vars "GEMINI_API_KEY=실제키값,APP_ENV=production,DEBUG=false,CORS_ORIGINS=[\"https://krx-aily.vercel.app\"]"
+```
+┌─────────────────────────────────────┐
+│ 목표주가                             │
+│                                     │
+│  평균 목표주가        현재주가        │
+│  85,000원            72,400원       │
+│  최저 75,000  최고 95,000  괴리율 +17.4% │
+└─────────────────────────────────────┘
 ```
 
-배포 완료 후 URL 확인:
+- 현재주가와 평균 목표주가를 나란히 표시
+- 괴리율 = `(목표주가 평균 - 현재주가) / 현재주가 × 100`
+- 괴리율 양수(목표 > 현재) → Rose Red `#EF4444`, 음수 → slate
+
+#### 구현 범위
+
+**Backend**
+
+1. `backend/app/services/price_fetcher.py` 신규 생성
+   - 네이버 금융 API로 현재주가 조회
+   - `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{ticker}`
+   - 반환 타입: `float | None`
+
+2. `backend/app/routers/research_router.py`
+   - `TargetPrice` 모델에 `current_price: float | None` 필드 추가
+   - `/analyze` 엔드포인트에서 `fetch_current_price(ticker)` 병렬 호출 (리포트 분석과 동시)
+
+**Frontend**
+
+3. `frontend/lib/api.ts`
+   - `TargetPrice` 인터페이스에 `current_price: number | null` 추가
+
+4. `frontend/components/report/TargetPriceCard.tsx`
+   - 현재주가 섹션 추가
+   - 괴리율 계산 및 색상 조건부 적용
+
+#### 데이터 흐름
+
 ```
-https://krx-aily-backend-xxxx.run.app
+/analyze POST
+  ├─ fetch_reports_with_pdf(ticker)   # 기존
+  ├─ fetch_current_price(ticker)      # 신규 (병렬)
+  └─ analyze_reports(...)             # 기존
+       ↓
+  AnalyzeResponse.target_price.current_price
 ```
+
+#### 괴리율 계산
+
+```
+gap = (avg_target - current_price) / current_price * 100
+표시: "+17.4%" 또는 "-3.2%"
+색상: 양수 → text-[#EF4444], 음수 → text-slate-500
+```
+
+#### 예외 처리
+- 현재주가 조회 실패 시 `current_price: null` 반환 (분석 전체는 중단하지 않음)
+- `current_price`가 null이면 괴리율 섹션 미표시
 
 ---
 
-## Phase 4 — 프론트엔드 배포 (Vercel)
+## 구현 순서 (기능 2)
 
-1. [vercel.com](https://vercel.com) → New Project → `jonas-jun/krx-Aily` 연결
-2. 설정:
-
-| 항목 | 값 |
-|------|----|
-| Root Directory | `frontend` |
-| Framework Preset | Next.js (자동 감지) |
-
-3. 환경 변수:
-
-| 키 | 값 |
-|----|----|
-| `NEXT_PUBLIC_API_URL` | `https://krx-aily-backend-xxxx.run.app/api` |
-
----
-
-## Phase 5 — CORS 업데이트
-
-Vercel 배포 완료 후 확정된 도메인을 Cloud Run 환경변수에 반영한다.
-
-```bash
-gcloud run services update krx-aily-backend \
-  --region asia-northeast3 \
-  --update-env-vars "CORS_ORIGINS=[\"https://krx-aily.vercel.app\"]"
-```
-
----
-
-## 배포 체크리스트
-
-- [ ] Phase 1: 코드 수정 완료 및 커밋
-- [ ] Phase 2: GCP 프로젝트 설정, API 활성화, Artifact Registry 생성
-- [ ] Phase 3: Cloud Run 백엔드 배포 및 URL 확인
-- [ ] Phase 4: Vercel 프론트엔드 배포 및 `NEXT_PUBLIC_API_URL` 설정
-- [ ] Phase 5: CORS_ORIGINS 업데이트 후 정상 동작 확인
-
----
-
-## 재배포 (업데이트 시)
-
-```bash
-# 백엔드만 업데이트
-gcloud builds submit ./backend \
-  --tag asia-northeast3-docker.pkg.dev/PROJECT_ID/krx-aily/backend
-
-gcloud run deploy krx-aily-backend \
-  --image asia-northeast3-docker.pkg.dev/PROJECT_ID/krx-aily/backend \
-  --region asia-northeast3
-```
-
-프론트엔드는 `main` 브랜치 push 시 Vercel이 자동 배포한다.
+| 순서 | 파일 | 내용 |
+|---|---|---|
+| 1 | `backend/app/services/price_fetcher.py` | 현재주가 조회 서비스 신규 |
+| 2 | `backend/app/routers/research_router.py` | `TargetPrice` 모델 + `/analyze` 수정 |
+| 3 | `frontend/lib/api.ts` | `TargetPrice` 타입 수정 |
+| 4 | `frontend/components/report/TargetPriceCard.tsx` | UI 구현 |
+| 5 | `frontend/app/report/[ticker]/page.tsx` | 📈 이모지 제거 |

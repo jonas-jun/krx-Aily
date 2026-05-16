@@ -6,7 +6,7 @@ import { Header } from "@/components/ui/Header";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KRX-Aily — 한국 주식 AI 리서치 분석",
+  title: "fin-Aily-kr — 한국 주식 AI 리서치 분석",
   description: "한국 상장 종목의 최신 애널리스트 리포트를 AI가 통합 분석해드립니다.",
 };
 

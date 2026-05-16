@@ -10,6 +10,7 @@ export interface TargetPrice {
   avg: number | null;
   min: number | null;
   max: number | null;
+  current_price: number | null;
 }
 
 export interface Opinions {
