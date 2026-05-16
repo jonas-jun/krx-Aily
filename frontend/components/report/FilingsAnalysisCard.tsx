@@ -10,7 +10,7 @@ export function FilingsAnalysisCard({ analysis }: Props) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
-      <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">DART 공시 분석</h2>
+      <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">공시 · 리포트 교차 분석</h2>
 
       {key_changes && key_changes.length > 0 && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
