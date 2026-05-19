@@ -56,13 +56,6 @@ class SourceItem(BaseModel):
     target_price: int | None = None
 
 
-class QuarterlyFinancialItem(BaseModel):
-    quarter: str
-    revenue: int | None
-    operating_profit: int | None
-    net_income: int | None
-
-
 class AnalyzeResponse(BaseModel):
     ticker: str
     name: str
@@ -71,7 +64,6 @@ class AnalyzeResponse(BaseModel):
     target_price: TargetPrice
     sources: list[SourceItem]
     model_version: str
-    quarterly_financials: list[QuarterlyFinancialItem] = []
     full_report: str | None = None
     dart_only: bool = False
 
@@ -209,13 +201,13 @@ async def analyze(body: AnalyzeRequest):
             async with sem:
                 return await extract_text_from_pdf_url(url)
 
-        fetched_texts, current_price, dart_data = await asyncio.gather(
+        fetched_texts, current_price, dart_data, dart_filings = await asyncio.gather(
             asyncio.gather(*[extract_with_limit(r.pdf_url) for r in reports]),
             fetch_current_price(ticker),
             fetch_dart_data(ticker),
+            fetch_dart_filing_texts(ticker),
         )
         texts_list = list(fetched_texts)
-        dart_filings = None
         dart_only = False
 
     try:
@@ -235,16 +227,6 @@ async def analyze(body: AnalyzeRequest):
             detail={"code": "ANALYSIS_FAILED", "message": "보고서 생성에 실패했습니다."},
         )
 
-    quarterly_financials = [
-        QuarterlyFinancialItem(
-            quarter=q["period"],
-            revenue=q.get("revenue"),
-            operating_profit=q.get("operating_income"),
-            net_income=q.get("net_income"),
-        )
-        for q in (dart_data or [])
-    ]
-
     return AnalyzeResponse(
         ticker=result.ticker,
         name=result.name,
@@ -253,7 +235,6 @@ async def analyze(body: AnalyzeRequest):
         target_price=TargetPrice(**result.target_price, current_price=current_price),
         sources=[SourceItem(**s) for s in result.sources],
         model_version=result.model_version,
-        quarterly_financials=quarterly_financials,
         full_report=result.full_report,
         dart_only=result.dart_only,
     )

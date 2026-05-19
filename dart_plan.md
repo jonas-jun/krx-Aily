@@ -1,200 +1,91 @@
-# 최종 보고서 프롬프트 전환 계획
+# fin-aily 리포트 개선 계획
 
-## 목표
-
-`krx_aily_plan.md`의 기관투자자급 애널리스트 프롬프트로 최종 보고서를 대체한다.
-
-**유지하는 카드**
-- 목표주가/현재주가 카드 (`TargetPriceCard`)
-- 분기별 주요 재무 카드 (`QuarterlyFinancialsTable`)
-- 분석 근거 리포트 카드 (`SourceList`)
-
-**제거하는 카드**
-- 핵심 투자 포인트 (`KeyPointsList`)
-- 리스크 (`RisksList`)
-- 공시 분석 요약 (`FilingsAnalysisCard`)
-
-**추가하는 카드**
-- 전문 통합 보고서 (`FullReportCard`) — 마크다운 렌더링
+`krx_aily_plan.md` 항목 1·2 반영 계획
 
 ---
 
-## 변경 범위
+## 항목 1. 주주환원 및 밸류업 분석
 
-### 1. `backend/app/services/report_analyzer.py`
+### 목표
+DART 공시와 증권사 리포트에서 배당·자사주·ROE 정보를 추출해
+§2 사업 및 재무 성과 분석 하위에 주주환원 분석을 추가한다.
 
-#### 현재 구조
-- `_build_prompt()` → 단일 Gemini 호출 → JSON 응답  
-  (`report_target_prices`, `target_price`, `key_points`, `risks`, `corporate_filings_analysis`)
+### 현황 파악
+| 필요 데이터 | 현재 수집 여부 | 비고 |
+|---|---|---|
+| ROE | 미계산 | net_income·equity는 이미 수집 중 → 코드로 계산 가능 |
+| 배당 현황 | 미수집 | DART `alotMatter.json` API 별도 호출 필요 |
+| 자사주 취득/소각 | 부분적 | 공시 원문(document.xml)에 포함되나 구조화 안 됨 |
+| 주주환원율 | 미계산 | (배당총액 + 자사주취득) / 순이익 — 배당 데이터 수집 후 계산 가능 |
 
-#### 변경 후 구조 — LLM 호출 2단계로 분리 (asyncio.gather로 병렬 실행)
+### 구현 단계
 
-**Call 1 — 목표주가 추출 (기존 유지, 경량화)**
+#### Phase 1-A — ROE Python 계산 (백엔드, 난이도 낮음)
+- `metrics.py`: `compute_roe(net_income, equity)` 함수 추가
+- `dart_service.py`의 `_IS_CF_FIELDS` 또는 `enrich_quarters()`에서 ROE 파생 지표로 추가
+- `report_analyzer.py`의 `_build_is_table()`: ROE 컬럼 추가
 
-```
-목적: report_target_prices, target_price(avg/min/max) 추출
-응답 형식: JSON
-프롬프트: 기존 _build_prompt에서 dart_instruction/dart_schema/key_points/risks 제거
-```
+#### Phase 1-B — 프롬프트 지시문 추가 (백엔드, 난이도 낮음)
+- `report_analyzer.py`의 §2 섹션 지시문에 아래 문구 삽입:
+  > **주주환원 및 자본 효율성:** DART 공시에 나타난 배당, 자사주 매입/소각 현황을 요약하고,
+  > 증권사 리포트에서 언급된 ROE 개선 여부 및 주주환원 정책 변화를 분석하라.
+- 대상 함수: `_build_full_report_prompt()`, `_build_dart_only_prompt()` 둘 다
 
-**Call 2 — 전문 보고서 생성 (신규)**
+#### Phase 1-C — DART 배당 공시 API 수집 (백엔드, 난이도 중간)
+- DART `alotMatter.json` API: 배당에 관한 사항 (주당 배당금, 배당성향, 배당수익률)
+- `dart_service.py`에 `fetch_dart_dividend(corp_code)` 함수 추가
+- `research_router.py`의 analyze 엔드포인트에서 병렬 수집 후 `analyze_reports()`에 전달
+- 프롬프트 내 별도 블록으로 주입
 
-```
-목적: 마크다운 형식의 기관투자자급 통합 보고서 생성
-응답 형식: 마크다운 텍스트 (JSON 아님)
-프롬프트: krx_aily_plan.md의 프롬프트 그대로 사용
-  - {company_name} → f-string으로 실제 기업명 삽입
-  - 보고서 블록: 기존 reports_block과 동일
-  - DART 블록: 기존 dart_block과 동일 (분기 재무 수치 제공)
-```
-
-#### `AnalysisResult` dataclass 변경
-
-```python
-# 제거
-key_points: list[str]
-risks: list[str]
-corporate_filings_analysis: dict | None
-
-# 추가
-full_report: str | None = None  # 마크다운 전문 보고서
-```
-
-#### `analyze_reports()` 변경
-
-```python
-# asyncio.gather로 두 LLM 호출 병렬 실행
-target_price_result, full_report_text = await asyncio.gather(
-    _extract_target_prices(client, model, report_dicts, dart_data),
-    _generate_full_report(client, model, name, report_dicts, dart_data),
-)
-```
+**권장 우선순위:** Phase 1-A → 1-B → 1-C 순서로 단계적 적용
 
 ---
 
-### 2. `backend/app/routers/research_router.py`
+## 항목 2. 증권사 편향성 및 의견 불일치 포착
 
-#### `AnalyzeResponse` 변경
+### 목표
+한국 증권사 리포트의 구조적 긍정 편향을 감안해,
+표면적 투자의견보다 **목표주가 방향성**과 **증권사 간 시각 차이**를 명시적으로 분석하도록 §6을 보강한다.
 
-```python
-# 제거
-key_points: list[str]
-risks: list[str]
-corporate_filings_analysis: CorporateFilingsAnalysis | None
+### 현황 파악
+| 필요 데이터 | 현재 수집 여부 | 비고 |
+|---|---|---|
+| 현재 목표주가 | 수집 중 | `_extract_target_prices()`에서 추출 |
+| 직전 목표주가 | 미추출 | 리포트 본문에 "목표주가 X→Y원으로 하향" 형태로 존재 |
+| 증권사 간 의견 차이 | 미분석 | 프롬프트 지시 없음 |
+| EPS 추정치 방향 | 미추출 | 일부 리포트에 포함 |
 
-# 추가
-full_report: str | None = None
-```
+### 구현 단계
 
-#### `CorporateFilingsAnalysis` Pydantic 모델 제거
+#### Phase 2-A — 목표주가 방향성 추출 (백엔드, 난이도 낮음)
+- `report_analyzer.py`의 `_build_target_price_prompt()` 수정:
+  - 기존: `report_target_prices` (현재 목표주가 배열)만 추출
+  - 변경: `prev_target_prices` (직전 목표주가) 및 `direction` (상향/하향/유지/신규) 추가 추출
+- `AnalysisResult` 또는 `SourceItem`에 `prev_target_price`, `tp_direction` 필드 추가
+- 프론트엔드 소스 목록에 방향성 배지 표시 (↑/↓/→)
 
-#### `analyze()` 핸들러에서 응답 구성 변경
+#### Phase 2-B — §6 프롬프트 보강 (백엔드, 난이도 낮음)
+- `_build_full_report_prompt()`의 §6 지시문에 아래 내용 추가:
+  > * **목표주가 방향성 분석:** 각 증권사의 이번 목표주가가 직전 대비 상향/하향/유지인지 명시하고,
+  >   하향 조정이 있다면 그 이유와 투자 의미를 분석하라.
+  > * **컨센서스 이면의 뉘앙스:** 투자의견이 모두 긍정적이더라도 EPS 추정치 하향,
+  >   목표주가 하향, 증권사 간 핵심 가정 차이(Bull vs. Bear 논리)를 날카롭게 포착하라.
 
-```python
-return AnalyzeResponse(
-    ...
-    full_report=result.full_report,
-    # key_points, risks, corporate_filings_analysis 제거
-)
-```
+#### Phase 2-C — 목표주가 방향성 프론트엔드 표시 (프론트엔드, 난이도 낮음)
+- `SourceList` 컴포넌트에 목표주가 옆 방향 배지 추가
+  - 상향: 초록 ▲, 하향: 빨강 ▼, 유지: 회색 →, 신규: 파랑 NEW
 
----
-
-### 3. `frontend/lib/api.ts`
-
-```typescript
-// AnalyzeResponse에서 제거
-key_points: string[];
-risks: string[];
-corporate_filings_analysis: CorporateFilingsAnalysis | null;
-
-// AnalyzeResponse에 추가
-full_report: string | null;
-
-// CorporateFilingsAnalysis 인터페이스 제거
-```
+**권장 우선순위:** Phase 2-B (즉시 효과) → 2-A → 2-C 순서
 
 ---
 
-### 4. `frontend/components/report/FullReportCard.tsx` (신규 파일)
+## 요약 로드맵
 
-- `react-markdown` + `remark-gfm`으로 마크다운 렌더링
-  - `remark-gfm`: GFM 표(Table) 지원 — 보고서 내 재무 표 렌더링에 필수
-- `@tailwindcss/typography` prose 클래스로 스타일링
-- `full_report`가 null이면 null 반환
-
-```tsx
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-
-export function FullReportCard({ report }: { report: string | null }) {
-  if (!report) return null;
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6">
-      <div className="prose prose-slate prose-sm max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
-      </div>
-    </div>
-  );
-}
-```
-
-#### 패키지 추가 필요
-
-```bash
-npm install react-markdown remark-gfm
-npm install -D @tailwindcss/typography
-```
-
-`tailwind.config.js`에 `require("@tailwindcss/typography")` 플러그인 추가
-
----
-
-### 5. `frontend/app/report/[ticker]/page.tsx`
-
-```tsx
-// 제거 imports
-import { FilingsAnalysisCard } from "@/components/report/FilingsAnalysisCard";
-import { KeyPointsList } from "@/components/report/KeyPointsList";
-import { RisksList } from "@/components/report/RisksList";
-
-// 추가 import
-import { FullReportCard } from "@/components/report/FullReportCard";
-
-// JSX — 카드 순서
-<TargetPriceCard targetPrice={data.target_price} />
-<QuarterlyFinancialsTable financials={data.quarterly_financials} />
-<FullReportCard report={data.full_report} />
-<SourceList sources={data.sources} />   {/* 분석 근거 리포트 유지 */}
-```
-
----
-
-## 삭제 예정 파일
-
-- `frontend/components/report/FilingsAnalysisCard.tsx`
-- `frontend/components/report/KeyPointsList.tsx`
-- `frontend/components/report/RisksList.tsx`
-
----
-
-## 작업 순서
-
-1. `report_analyzer.py` — Call 1/2 분리, `AnalysisResult` 수정
-2. `research_router.py` — 응답 모델 수정
-3. `frontend/lib/api.ts` — 타입 수정
-4. 패키지 설치 (`react-markdown`, `remark-gfm`, `@tailwindcss/typography`)
-5. `tailwind.config.js` — typography 플러그인 추가
-6. `FullReportCard.tsx` 신규 생성
-7. `page.tsx` — 컴포넌트 교체
-8. 불필요 컴포넌트 파일 삭제
-9. 로컬 테스트 (백엔드 + 프론트엔드 동시)
-
----
-
-## 유의사항
-
-- Call 1과 Call 2는 서로 다른 응답 형식(JSON vs 마크다운)이므로 `_parse_response()`를 Call 1에만 사용한다.
-- DART 분기 재무 데이터는 LLM에게 텍스트로 제공하지만, `QuarterlyFinancialsTable`은 DART 원본 데이터를 직접 사용하므로 변경 없다.
-- 목표주가 추출(Call 1)과 전문 보고서 생성(Call 2)을 병렬로 실행해 레이턴시를 최소화한다.
-- 보고서 생성 모델은 기존 `feat.model` (Gemini) 그대로 사용한다.
+| Phase | 내용 | 변경 파일 | 난이도 | 효과 |
+|---|---|---|---|---|
+| 1-A | ROE 계산 + IS 테이블 컬럼 추가 | `metrics.py`, `report_analyzer.py` | 낮음 | 즉시 |
+| 1-B | 주주환원 프롬프트 지시문 추가 | `report_analyzer.py` | 낮음 | 즉시 |
+| 2-B | 편향성·의견차 §6 프롬프트 보강 | `report_analyzer.py` | 낮음 | 즉시 |
+| 2-A | 목표주가 방향성 추출 | `report_analyzer.py`, 응답 모델 | 중간 | 중간 |
+| 2-C | 프론트 방향성 배지 | `frontend/components` | 낮음 | 중간 |
+| 1-C | DART 배당 공시 API 수집 | `dart_service.py`, `research_router.py` | 중간 | 높음 |

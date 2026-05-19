@@ -21,13 +21,6 @@ export interface SourceItem {
   target_price: number | null;
 }
 
-export interface QuarterlyFinancialItem {
-  quarter: string;
-  revenue: number | null;
-  operating_profit: number | null;
-  net_income: number | null;
-}
-
 export interface AnalyzeResponse {
   ticker: string;
   name: string;
@@ -36,7 +29,6 @@ export interface AnalyzeResponse {
   target_price: TargetPrice;
   sources: SourceItem[];
   model_version: string;
-  quarterly_financials: QuarterlyFinancialItem[];
   full_report: string | null;
   dart_only: boolean;
 }

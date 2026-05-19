@@ -6,7 +6,6 @@ import Link from "next/link";
 import { api, type AnalyzeResponse } from "@/lib/api";
 import { ReportSkeleton } from "@/components/report/ReportSkeleton";
 import { TargetPriceCard } from "@/components/report/TargetPriceCard";
-import { QuarterlyFinancialsTable } from "@/components/report/QuarterlyFinancialsTable";
 import { FullReportCard } from "@/components/report/FullReportCard";
 import { SourceList } from "@/components/report/SourceList";
 
@@ -70,8 +69,7 @@ function ReportContent() {
       {!loading && !error && data && (
         <div className="space-y-4">
           <TargetPriceCard targetPrice={data.target_price} />
-          <QuarterlyFinancialsTable financials={data.quarterly_financials} />
-          <FullReportCard report={data.full_report} analyzedAt={data.analyzed_at} dartOnly={data.dart_only} />
+<FullReportCard report={data.full_report} analyzedAt={data.analyzed_at} dartOnly={data.dart_only} />
           <SourceList sources={data.sources} />
         </div>
       )}
