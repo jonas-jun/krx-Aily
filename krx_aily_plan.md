@@ -1,115 +1,61 @@
-# krx-Aily 개발 기획안
+지금 프롬프트도 이미 기관투자자급 리서치에 걸맞은 훌륭한 뼈대를 갖추고 있습니다. DART의 'Factual 데이터'와 증권사의 'Market View'를 결합하는 구조가 아주 좋습니다.
+
+입력 데이터(Open DART + 증권사 리포트)의 특성과 **최근 한국 주식 시장의 트렌드**를 고려했을 때, 다음 4가지 포인트를 보완하면 리포트의 깊이와 실전 활용도를 훨씬 끌어올릴 수 있습니다.
 
 ---
 
-## [완료] 디자인 리브랜딩 (issue #11)
+### 1. 주주환원 및 밸류업 (Corporate Value-up) 분석 추가
 
-| 항목 | 변경 전 | 변경 후 |
-|---|---|---|
-| 서비스명 | KRX-Aily | fin-Aily-kr |
-| 핵심 컬러 | rose-500 (그라디언트) | Rose Red `#EF4444` |
-| 보조 컬러 | slate 계열 | Navy Blue `#1E3A5F` |
-| 로고 | 텍스트 전용 | SVG 로고 (▲ 아이콘 + KR 배지) |
+최근 한국 시장의 가장 큰 화두는 '밸류업(주주환원율, ROE, 자사주 매입/소각)'입니다. DART 공시(배당, 자사주 취득/처분)와 리포트에 이 내용이 반드시 포함되어 있으므로, 이를 명시적으로 뽑아내도록 지시하는 것이 좋습니다.
 
-### 완료된 변경 파일
-- `tailwind.config.js` — `primary: #EF4444`, `brand: #1E3A5F` 커스텀 컬러
-- `Logo.tsx` — 점 없는 i(ı) + 빨간 삼각형 + KR 배지 SVG 컴포넌트
-- `Header.tsx` — SVG 로고 적용, 활성 Nav 링크 `#EF4444`
-- `app/layout.tsx` — 타이틀 `fin-Aily-kr` 변경
-- `app/page.tsx` — 이모지·h1 제거, Hero 로고(size=lg)
-- 리포트 컴포넌트 5종 — Primary 컬러 `#EF4444` 일괄 적용
+* **추가 제안 위치:** `2. 사업 및 재무 성과 분석`의 하위 항목 또는 별도 섹션
+* **프롬프트 삽입 문구:**
+> * **주주환원 및 자본 효율성:** DART 공시에 나타난 배당, 자사주 매입/소각 현황을 요약하고, 증권사 리포트에서 언급된 ROE 개선 여부 및 주주환원 정책의 변화를 분석하라.
+> 
+> 
 
----
 
-## [진행 예정] 리포트 페이지 UX 개선
 
-### 기능 1. 종목명 앞 이모지 제거
+### 2. 증권사 리포트의 '편향성' 및 '의견 불일치' 포착
 
-**현재**
-```
-📈 삼성전자  005930
-```
-**변경 후**
-```
-삼성전자  005930
-```
+한국 증권사 리포트는 관행상 '매도(Sell)' 의견이 거의 없고 대부분 긍정적인 톤을 유지합니다. 따라서 겉보기 등급(Buy)보다는 **목표주가의 하향 조정 여부**나 **5개 리포트 간의 시각 차이**를 잡아내는 것이 진짜 인사이트입니다.
 
-- **파일**: `app/report/[ticker]/page.tsx` line 53
-- **작업**: `<span className="text-xl">📈</span>` 제거
+* **추가 제안 위치:** `4. 증권사 뷰 및 컨센서스 분석` 하위 항목 보완
+* **프롬프트 삽입 문구:**
+> * **컨센서스 이면의 뉘앙스 분석:** 5개 증권사의 투자의견이 모두 긍정적이더라도, '목표주가의 하향 조정 여부', '실적 추정치(EPS 등)의 하향', 혹은 **증권사 간 의견이 가장 크게 엇갈리는 쟁점(Bull vs. Bear 논리)**을 날카롭게 포착하여 서술하라.
+> 
+> 
 
----
 
-### 기능 2. 목표주가 카드에 현재주가 표시
 
-#### 목표 UI
+### 3. 밸류에이션(Valuation) 지표 및 피어(Peer) 비교
 
-```
-┌─────────────────────────────────────┐
-│ 목표주가                             │
-│                                     │
-│  평균 목표주가        현재주가        │
-│  85,000원            72,400원       │
-│  최저 75,000  최고 95,000  괴리율 +17.4% │
-└─────────────────────────────────────┘
-```
+리포트 5개가 들어간다면 PER, PBR, EV/EBITDA 등의 밸류에이션 데이터가 풍부하게 제공됩니다. 현재 주가가 역사적 밴드나 경쟁사 대비 어느 위치에 있는지 짚어주면 리포트의 완결성이 높아집니다.
 
-- 현재주가와 평균 목표주가를 나란히 표시
-- 괴리율 = `(목표주가 평균 - 현재주가) / 현재주가 × 100`
-- 괴리율 양수(목표 > 현재) → Rose Red `#EF4444`, 음수 → slate
+* **추가 제안 위치:** `4. 증권사 뷰 및 컨센서스 분석` 하위 항목 또는 `6. 최종 종합 평가` 직전
+* **프롬프트 삽입 문구:**
+> * **밸류에이션 및 밸류에이션 매력도:** 증권사들이 제시한 핵심 밸류에이션 지표(PER, PBR 등)를 종합하고, 과거 밴드 또는 피어(동종업계 경쟁사) 대비 현재 주가의 매력도/고평가 여부를 요약하라.
+> 
+> 
 
-#### 구현 범위
 
-**Backend**
 
-1. `backend/app/services/price_fetcher.py` 신규 생성
-   - 네이버 금융 API로 현재주가 조회
-   - `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{ticker}`
-   - 반환 타입: `float | None`
+### 4. 입력 데이터 간의 '충돌' 해결 지침
 
-2. `backend/app/routers/research_router.py`
-   - `TargetPrice` 모델에 `current_price: float | None` 필드 추가
-   - `/analyze` 엔드포인트에서 `fetch_current_price(ticker)` 병렬 호출 (리포트 분석과 동시)
+LLM은 두 가지 출처(DART vs 증권사 리포트)의 데이터가 다를 때 환각(Hallucination)을 일으키거나 당황할 수 있습니다. 예를 들어 DART의 과거 확정 실적과 리포트의 추정치가 섞일 수 있습니다.
 
-**Frontend**
+* **추가 제안 위치:** `데이터 원칙` 섹션
+* **프롬프트 삽입 문구:**
+> 4. 데이터 출처 간 충돌 시 처리: 과거의 확정적 재무 수치와 팩트는 무조건 'DART 공시'를 우선하며, 미래 실적 추정치와 밸류에이션은 '증권사 리포트'를 기준으로 하되 출처를 명확히 분리하여 기재하라.
+> 
+> 
 
-3. `frontend/lib/api.ts`
-   - `TargetPrice` 인터페이스에 `current_price: number | null` 추가
 
-4. `frontend/components/report/TargetPriceCard.tsx`
-   - 현재주가 섹션 추가
-   - 괴리율 계산 및 색상 조건부 적용
-
-#### 데이터 흐름
-
-```
-/analyze POST
-  ├─ fetch_reports_with_pdf(ticker)   # 기존
-  ├─ fetch_current_price(ticker)      # 신규 (병렬)
-  └─ analyze_reports(...)             # 기존
-       ↓
-  AnalyzeResponse.target_price.current_price
-```
-
-#### 괴리율 계산
-
-```
-gap = (avg_target - current_price) / current_price * 100
-표시: "+17.4%" 또는 "-3.2%"
-색상: 양수 → text-[#EF4444], 음수 → text-slate-500
-```
-
-#### 예외 처리
-- 현재주가 조회 실패 시 `current_price: null` 반환 (분석 전체는 중단하지 않음)
-- `current_price`가 null이면 괴리율 섹션 미표시
 
 ---
 
-## 구현 순서 (기능 2)
+### 💡 AI 엔지니어링 관점에서의 팁 (Open DART 처리)
 
-| 순서 | 파일 | 내용 |
-|---|---|---|
-| 1 | `backend/app/services/price_fetcher.py` | 현재주가 조회 서비스 신규 |
-| 2 | `backend/app/routers/research_router.py` | `TargetPrice` 모델 + `/analyze` 수정 |
-| 3 | `frontend/lib/api.ts` | `TargetPrice` 타입 수정 |
-| 4 | `frontend/components/report/TargetPriceCard.tsx` | UI 구현 |
-| 5 | `frontend/app/report/[ticker]/page.tsx` | 📈 이모지 제거 |
+Open DART API로 가져온 문서, 특히 `[사업의 내용]`이나 `[재무제표 주석]`은 HTML 태그가 섞여 있거나 텍스트 길이가 어마어마하게 길어 **Context Window를 초과**하거나 Filing Delta(비교 분석) 시 LLM의 Attention이 흐려지는 문제(Lost in the middle)가 자주 발생합니다.
+
+프롬프트를 정교하게 깎는 것만큼이나, 백엔드에서 DART 텍스트를 파싱할 때 목차(Table of Contents)를 기준으로 필요한 섹션만 청킹(Chunking)해서 넣어주는 파이프라인 전처리가 리포트 품질을 크게 좌우할 것입니다.
